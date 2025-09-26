@@ -8,6 +8,10 @@ export interface User {
   avatar?: string;
   createdAt: Date;
   isVerified: boolean;
+  userType?: 'citizen' | 'engineer';
+  engineerId?: string;
+  department?: string;
+  specialization?: string;
 }
 
 export interface Location {

@@ -23,23 +23,48 @@ const initialState: AuthState = {
 // ...existing code...
 export const loginUser = createAsyncThunk(
   'auth/login',
-  async (credentials: LoginCredentials, { rejectWithValue }) => {
+  async (credentials: any, { rejectWithValue }) => {
     try {
-      // TODO: Replace with actual API call
-      const mockResponse: ApiResponse<{ user: User; token: string }> = {
-        success: true,
-        data: {
-          user: {
-            id: '1',
-            name: 'John Doe',
-            email: 'john@example.com',
-            phone: credentials.phone,
-            createdAt: new Date().toDateString(), // <-- convert to string
-            isVerified: true,
+      let mockResponse: ApiResponse<{ user: User; token: string }>;
+      
+      if (credentials.userType === 'engineer') {
+        // Engineer login
+        mockResponse = {
+          success: true,
+          data: {
+            user: {
+              id: credentials.engineerId,
+              name: credentials.name,
+              email: credentials.email,
+              phone: credentials.phone,
+              createdAt: new Date().toDateString(),
+              isVerified: true,
+              userType: 'engineer',
+              engineerId: credentials.engineerId,
+              department: credentials.department,
+              specialization: credentials.specialization,
+            },
+            token: 'engineer-jwt-token',
           },
-          token: 'mock-jwt-token',
-        },
-      };
+        };
+      } else {
+        // Citizen login
+        mockResponse = {
+          success: true,
+          data: {
+            user: {
+              id: '1',
+              name: 'John Doe',
+              email: 'john@example.com',
+              phone: credentials.phone,
+              createdAt: new Date().toDateString(),
+              isVerified: true,
+              userType: 'citizen',
+            },
+            token: 'citizen-jwt-token',
+          },
+        };
+      }
 
       if (mockResponse.success && mockResponse.data) {
         await AsyncStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, mockResponse.data.token);

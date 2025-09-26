@@ -13,6 +13,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import {COLORS, TYPOGRAPHY, SPACING} from '../../utils/constants';
+import { submitReport } from '../../services/api';
 
 interface IssueData {
   title: string;
@@ -48,7 +49,7 @@ const ReportIssueScreen: React.FC = () => {
     title: '',
     description: '',
     category: '',
-    priority: '',
+    priority: 'medium', // Default priority - citizens don't choose
     images: [],
     location: null,
   });
@@ -75,12 +76,33 @@ const ReportIssueScreen: React.FC = () => {
         longitude: location.coords.longitude,
       });
 
+      const addressObj = address[0];
+      let formattedAddress = 'Unknown location';
+      
+      if (addressObj) {
+        const parts = [];
+        if (addressObj.name) parts.push(addressObj.name);
+        if (addressObj.street) parts.push(addressObj.street);
+        if (addressObj.district) parts.push(addressObj.district);
+        if (addressObj.city) parts.push(addressObj.city);
+        if (addressObj.region) parts.push(addressObj.region);
+        
+        formattedAddress = parts.length > 0 ? parts.join(', ') : 'Unknown location';
+      }
+      
+      console.log('📍 Location data:', {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        rawAddress: addressObj,
+        formattedAddress
+      });
+
       setIssueData(prev => ({
         ...prev,
         location: {
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
-          address: address[0] ? `${address[0].street}, ${address[0].city}` : 'Unknown location',
+          address: formattedAddress,
         },
       }));
     } catch (error) {
@@ -140,6 +162,13 @@ const ReportIssueScreen: React.FC = () => {
   };
 
   const submitIssue = async () => {
+    console.log('🚀 Submitting report data:', {
+      title: issueData.title,
+      category: issueData.category,
+      priority: issueData.priority,
+      location: issueData.location,
+      description: issueData.description
+    });
     if (!issueData.title.trim()) {
       Alert.alert('Error', 'Please enter an issue title');
       return;
@@ -148,37 +177,45 @@ const ReportIssueScreen: React.FC = () => {
       Alert.alert('Error', 'Please select a category');
       return;
     }
-    if (!issueData.priority) {
-      Alert.alert('Error', 'Please select a priority level');
+
+    if (!issueData.location) {
+      Alert.alert('Error', 'Please enable location access');
       return;
     }
 
     setLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const result = await submitReport(issueData);
       setLoading(false);
-      Alert.alert(
-        'Success!',
-        'Your issue has been reported successfully. You will receive updates on its progress.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Reset form
-              setIssueData({
-                title: '',
-                description: '',
-                category: '',
-                priority: '',
-                images: [],
-                location: issueData.location,
-              });
+      
+      if (result.success) {
+        Alert.alert(
+          'Success!',
+          'Your issue has been reported successfully. You will receive updates on its progress.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setIssueData({
+                  title: '',
+                  description: '',
+                  category: '',
+                  priority: 'medium',
+                  images: [],
+                  location: issueData.location,
+                });
+              },
             },
-          },
-        ]
-      );
-    }, 2000);
+          ]
+        );
+      } else {
+        Alert.alert('Error', 'Failed to submit report. Please try again.');
+      }
+    } catch (error) {
+      setLoading(false);
+      Alert.alert('Error', 'Network error. Please check your connection.');
+    }
   };
 
   return (
@@ -242,37 +279,14 @@ const ReportIssueScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Priority Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>⚡ Priority Level</Text>
-        <View style={styles.priorityRow}>
-          {PRIORITIES.map(priority => (
-            <TouchableOpacity
-              key={priority.id}
-              style={[
-                styles.priorityCard,
-                {borderColor: priority.color},
-                issueData.priority === priority.id && {backgroundColor: priority.color + '20'},
-              ]}
-              onPress={() => setIssueData(prev => ({...prev, priority: priority.id}))}
-            >
-              <Text style={[styles.priorityText, {color: priority.color}]}>{priority.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+
 
       {/* Photos Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>📷 Photos</Text>
-        <View style={styles.photoActions}>
-          <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
-            <Text style={styles.photoButtonText}>📸 Take Photo</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.photoButton} onPress={pickImage}>
-            <Text style={styles.photoButtonText}>🖼️ Choose from Gallery</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.photoButton} onPress={takePhoto}>
+          <Text style={styles.photoButtonText}>📸 Take Photo</Text>
+        </TouchableOpacity>
         
         {issueData.images.length > 0 && (
           <View style={styles.imageGrid}>
@@ -438,17 +452,12 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '600',
   },
-  photoActions: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    marginBottom: SPACING.md,
-  },
   photoButton: {
-    flex: 1,
     backgroundColor: COLORS.secondary,
     padding: SPACING.md,
     borderRadius: 8,
     alignItems: 'center',
+    marginBottom: SPACING.md,
   },
   photoButtonText: {
     color: COLORS.white,

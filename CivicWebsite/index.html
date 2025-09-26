@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Government Dashboard - Resolve360</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-card">
+            <div class="login-title">
+                <i class="fas fa-shield-alt"></i>
+                Government Dashboard
+            </div>
+            <div class="login-subtitle">Secure Access Required</div>
+            <form class="login-form" id="loginForm">
+                <input type="email" id="email" class="login-input" placeholder="Government Email" required>
+                <input type="password" id="password" class="login-input" placeholder="Password" required>
+                <button type="submit" class="login-btn" id="loginBtn">
+                    <i class="fas fa-sign-in-alt"></i> Secure Login
+                </button>
+            </form>
+            <div style="margin-top: 20px; font-size: 12px; color: #6b7280;">
+                <div><strong>District Officers:</strong></div>
+                <div>mumbai@gov.in / mumbai123</div>
+                <div>pune@gov.in / pune123</div>
+                <div>dhule@gov.in / dhule123</div>
+                
+                <div style="margin-top: 15px;"><strong>Department Heads:</strong></div>
+                <div>roads.dept@gov.in / roads123</div>
+                <div>water.dept@gov.in / water123</div>
+                <div>electricity.dept@gov.in / electricity123</div>
+                <div>waste.dept@gov.in / waste123</div>
+                <div>public.dept@gov.in / public123</div>
+                
+                <div style="margin-top: 10px; font-size: 11px; color: #9ca3af;">Each user type has separate dashboard access</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="dashboard" id="dashboard">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="gov-seal">🏛️</div>
+                <div class="logo">
+                    <h1>Resolve360 Dashboard</h1>
+                    <div class="subtitle">Government of India • Smart Cities Mission</div>
+                </div>
+            </div>
+            
+            <div class="header-center">
+                <div class="datetime-display" id="currentDateTime">
+                    <i class="fas fa-clock"></i>
+                    <span id="dateTimeText">Loading...</span>
+                </div>
+                <div class="status-indicator" id="connectionStatus">
+                    <i class="fas fa-circle"></i>
+                    <span>Live Sync Active</span>
+                </div>
+            </div>
+            
+            <div class="user-info">
+                <div class="user-profile" onclick="toggleUserMenu()">
+                    <div class="user-avatar" id="userAvatar">GA</div>
+                    <div class="user-details">
+                        <div class="user-name" id="userName">Government Admin</div>
+                        <div class="user-role">Municipal Officer</div>
+                        <div class="user-district" id="userDistrict">All Districts</div>
+                    </div>
+                </div>
+                
+                <div class="header-actions">
+                    <button class="action-btn test-sync-btn" onclick="fetchReportsFromAPI()">
+                        <i class="fas fa-sync-alt"></i> Load Reports
+                    </button>
+                    <button class="action-btn logout-btn" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Statistics -->
+            <div class="stats-grid">
+                <div class="stat-card stat-total">
+                    <i class="fas fa-chart-bar stat-icon"></i>
+                    <div class="stat-number" id="totalReports">0</div>
+                    <div class="stat-label">Total Reports</div>
+                </div>
+                <div class="stat-card stat-pending">
+                    <i class="fas fa-clock stat-icon"></i>
+                    <div class="stat-number" id="pendingReports">0</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+                <div class="stat-card stat-progress">
+                    <i class="fas fa-cog stat-icon"></i>
+                    <div class="stat-number" id="progressReports">0</div>
+                    <div class="stat-label">In Progress</div>
+                </div>
+                <div class="stat-card stat-resolved">
+                    <i class="fas fa-check-circle stat-icon"></i>
+                    <div class="stat-number" id="resolvedReports">0</div>
+                    <div class="stat-label">Resolved</div>
+                </div>
+            </div>
+
+            <!-- Dashboard Layout -->
+            <div class="dashboard-layout">
+                <!-- Left Column - Reports List -->
+                <div class="left-column">
+                    <div class="reports-section">
+                        <div class="reports-list">
+                            <div class="reports-header">
+                                <div class="reports-title">Reports</div>
+                                <div class="reports-actions">
+                                    <button class="group-btn" id="groupByLocationBtn" onclick="toggleLocationGrouping()">
+                                        <i class="fas fa-layer-group"></i> Group by Location
+                                    </button>
+                                    <div class="reports-count" id="reportsCount">0 reports</div>
+                                </div>
+                            </div>
+                            <div class="reports-container" id="reportsContainer">
+                                <div class="loading-spinner">
+                                    <div class="spinner"></div>
+                                    <span>Click "Load Reports" to fetch data...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column - Departments & Assignments -->
+                <div class="right-column">
+                    <!-- Tab Navigation -->
+                    <div class="tab-navigation">
+                        <button class="tab-btn active" onclick="switchTab('departments')">
+                            <i class="fas fa-building"></i> Departments
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('assignments')">
+                            <i class="fas fa-tasks"></i> Assignments
+                        </button>
+                    </div>
+                    
+                    <!-- Departments Panel -->
+                    <div class="departments-panel" id="departmentsPanel">
+                        <div class="departments-grid" id="departmentsGrid">
+                            <!-- Department cards will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Assignments Panel -->
+                    <div class="assignments-panel" id="assignmentsPanel" style="display: none;">
+                        <div class="assignments-header">
+                            <div class="assignments-count" id="assignmentsCount">0 assignments</div>
+                        </div>
+                        <div class="assignments-list" id="assignmentsList">
+                            <!-- Assignments will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Department Assignment Modal -->
+    <div class="modal-overlay" id="assignModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-paper-plane"></i> Assign to Department</h3>
+                <button class="modal-close" onclick="closeAssignModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="assignment-info">
+                    <div class="location-info">
+                        <strong>Location:</strong> <span id="assignLocation"></span>
+                    </div>
+                    <div class="reports-info">
+                        <strong>Reports:</strong> <span id="assignReportsCount"></span>
+                    </div>
+                </div>
+                
+                <div class="department-selection">
+                    <label>Select Department:</label>
+                    <div class="department-options" id="departmentOptions">
+                        <!-- Department options will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <div class="assignment-note">
+                    <label>Assignment Note (Optional):</label>
+                    <textarea id="assignmentNote" placeholder="Add any special instructions for the department..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeAssignModal()">Cancel</button>
+                <button class="btn-assign" onclick="assignToDepartment()">
+                    <i class="fas fa-check"></i> Assign Reports
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Engineer Assignment Modal -->
+    <div class="modal-overlay" id="engineerAssignModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-user-hard-hat"></i> Assign Engineer</h3>
+                <button class="modal-close" onclick="closeEngineerAssignModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="assignment-info">
+                    <div class="assignment-details">
+                        <strong>Assignment:</strong> <span id="engineerAssignmentLocation"></span>
+                    </div>
+                </div>
+                
+                <div class="engineer-selection">
+                    <label>Select Engineer:</label>
+                    <div class="engineers-list" id="engineersList">
+                        <!-- Engineers will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeEngineerAssignModal()">Cancel</button>
+                <button class="btn-assign" onclick="assignToEngineer()">
+                    <i class="fas fa-check"></i> Assign to Engineer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification">
+        <i class="fas fa-bell"></i>
+        <span id="notificationText">Notification</span>
+    </div>
+
+    <!-- Scripts -->
+    <script src="dashboard.js"></script>
+</body>
+</html>

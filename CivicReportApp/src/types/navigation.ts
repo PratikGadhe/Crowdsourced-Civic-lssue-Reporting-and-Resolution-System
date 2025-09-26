@@ -18,6 +18,7 @@ export type MainTabParamList = {
   MyReports: undefined;
   Map: undefined;
   Profile: undefined;
+  EngineerTasks: undefined;
 };
 
 // Issue Stack Navigation Types

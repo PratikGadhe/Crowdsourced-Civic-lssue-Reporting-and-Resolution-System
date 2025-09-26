@@ -1,21 +1,25 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSelector } from 'react-redux';
 import type { MainTabParamList } from '../types/navigation';
 import { COLORS } from '../utils/constants';
+import { RootState } from '../store/store';
 
-// Import screens (we'll create these next)
+// Import screens
 import HomeScreen from '../screens/main/HomeScreen';
-import ReportIssueScreen from '../screens/main/ReportIssueScreenAI';
+import ReportIssueScreen from '../screens/main/ReportIssueScreen';
 import MyReportsScreen from '../screens/main/MyReportsScreen';
-
 import ProfileScreen from '../screens/main/ProfileScreen';
+import EngineerTasksScreen from '../screens/main/EngineerTasksScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const MainNavigator: React.FC = () => {
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isEngineer = user?.userType === 'engineer';
   return (
     <Tab.Navigator
-      initialRouteName="Home"
+      initialRouteName={isEngineer ? "EngineerTasks" : "Home"}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: COLORS.primary,
@@ -33,39 +37,57 @@ const MainNavigator: React.FC = () => {
           fontWeight: '500',
         },
       }}>
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          tabBarLabel: 'Home',
-          // tabBarIcon: ({color, size}) => <Icon name="home" size={size} color={color} />
-        }}
-      />
-      <Tab.Screen
-        name="ReportIssue"
-        component={ReportIssueScreen}
-        options={{
-          tabBarLabel: 'Report',
-          // tabBarIcon: ({color, size}) => <Icon name="plus-circle" size={size} color={color} />
-        }}
-      />
-      <Tab.Screen
-        name="MyReports"
-        component={MyReportsScreen}
-        options={{
-          tabBarLabel: 'My Reports',
-          // tabBarIcon: ({color, size}) => <Icon name="list" size={size} color={color} />
-        }}
-      />
-
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: 'Profile',
-          // tabBarIcon: ({color, size}) => <Icon name="user" size={size} color={color} />
-        }}
-      />
+      {isEngineer ? (
+        // Engineer tabs
+        <>
+          <Tab.Screen
+            name="EngineerTasks"
+            component={EngineerTasksScreen}
+            options={{
+              tabBarLabel: 'My Tasks',
+            }}
+          />
+          <Tab.Screen
+            name="Profile"
+            component={ProfileScreen}
+            options={{
+              tabBarLabel: 'Profile',
+            }}
+          />
+        </>
+      ) : (
+        // Citizen tabs
+        <>
+          <Tab.Screen
+            name="Home"
+            component={HomeScreen}
+            options={{
+              tabBarLabel: 'Home',
+            }}
+          />
+          <Tab.Screen
+            name="ReportIssue"
+            component={ReportIssueScreen}
+            options={{
+              tabBarLabel: 'Report',
+            }}
+          />
+          <Tab.Screen
+            name="MyReports"
+            component={MyReportsScreen}
+            options={{
+              tabBarLabel: 'My Reports',
+            }}
+          />
+          <Tab.Screen
+            name="Profile"
+            component={ProfileScreen}
+            options={{
+              tabBarLabel: 'Profile',
+            }}
+          />
+        </>
+      )}
     </Tab.Navigator>
   );
 };

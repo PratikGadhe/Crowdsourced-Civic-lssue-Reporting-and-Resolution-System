@@ -1096,8 +1096,8 @@
                 </div>
                 
                 <div class="header-actions">
-                    <button class="action-btn test-sync-btn" onclick="testSync()">
-                        <i class="fas fa-mobile-alt"></i> Test Sync
+                    <button class="action-btn test-sync-btn" onclick="fetchReportsFromAPI()">
+                        <i class="fas fa-sync-alt"></i> Load Reports
                     </button>
                     <button class="action-btn logout-btn" onclick="logout()">
                         <i class="fas fa-sign-out-alt"></i> Logout
@@ -1362,6 +1362,7 @@
     </div>
 
     <!-- Firebase config and sync scripts - check if files exist -->
+    <script src="real-api-sync.js"></script>
     <script>
         // Check if external scripts exist, otherwise use fallback
         function loadScript(src, fallback) {
@@ -1398,11 +1399,11 @@
             initializeHeader();
             startClock();
             
-            // Load reports immediately if user is already logged in
+            // Load reports from API if user is already logged in
             const currentUserEmail = localStorage.getItem('currentUserEmail');
             if (currentUserEmail && document.getElementById('dashboard').style.display !== 'none') {
-                console.log('🔄 Auto-loading reports for logged in user');
-                loadReportsFromStorage();
+                console.log('🔄 Auto-loading reports from API for logged in user');
+                fetchReportsFromAPI();
             }
         });
         
@@ -1605,10 +1606,10 @@
 
                 showNotification('Login successful! Welcome to the dashboard.');
                 
-                // Force load reports immediately after login
+                // Load real reports from API immediately after login
                 setTimeout(() => {
-                    console.log('🔄 Post-login: Loading reports...');
-                    loadReportsFromStorage();
+                    console.log('🔄 Post-login: Loading reports from API...');
+                    fetchReportsFromAPI();
                     startRealtimeListener();
                 }, 200);
             } else {
@@ -1637,8 +1638,8 @@
             // Show immediate loading feedback
             showNotification('🚀 Loading dashboard data...');
             
-            // Load data immediately (no delay)
-            loadReportsFromStorage();
+            // Load real data from API
+            fetchReportsFromAPI();
             
             // Initialize map quickly
             if (typeof google !== 'undefined' && google.maps) {
@@ -1692,209 +1693,51 @@
             }
         }
 
-        function loadReportsFromStorage() {
-            console.log('🔄 Loading reports from storage...');
+        // Fetch reports directly from MongoDB API
+        async function fetchReportsFromAPI() {
+            const btn = event.target;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            btn.disabled = true;
             
-            const stored = localStorage.getItem('demoReports') || localStorage.getItem('civicReports');
-            
-            if (stored) {
-                try {
-                    const reports = JSON.parse(stored);
-                    console.log(`📊 Found ${reports.length} stored reports`);
-                    
-                    coordinatesArray = [{ "lat": 20.8705612, "lng": 74.7660728 }, { "lat": 20.8953566, "lng": 74.7294362 }, {
-                        "lat": 20.9120663,
-                        "lng": 74.7775639
-                    }]
-                    
-                    allReports = reports.map(report => ({
-                        ...report,
-                        timestamp: report.timestamp || report.createdAt,
-                        coordinates: report.coordinates || coordinatesArray[Math.floor(Math.random() * coordinatesArray.length)],
-                        priority: report.priority || 'medium'
-                    }));
-                } catch (error) {
-                    console.error('❌ Error parsing stored reports:', error);
-                    loadDemoData();
-                }
-            } else {
-                console.log('🆕 No stored reports found, loading demo data...');
-                loadDemoData();
-            }
-
-            console.log(`✅ Successfully loaded ${allReports.length} reports`);
-            
-            // Force update UI
-            setTimeout(() => {
-                applyFilters();
-                updateStats();
+            try {
+                console.log('🔄 Fetching reports from API...');
+                const response = await fetch('http://localhost:9000/api/reports');
                 
-                // Ensure reports display
-                if (allReports.length > 0) {
-                    console.log('📊 Forcing reports display...');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('📡 API Response:', result);
+                
+                if (result.success && result.data) {
+                    allReports = result.data;
+                    filteredReports = result.data;
+                    
+                    console.log(`✅ Loaded ${allReports.length} reports from MongoDB`);
+                    console.log('📋 First report data:', allReports[0]);
+                    
+                    // Update dashboard
+                    updateStats();
+                    
+                    // Simple display without filters first
                     displayReports();
+                    
+                    showNotification(`✅ Loaded ${allReports.length} reports from database`);
+                } else {
+                    console.error('❌ API response error:', result);
+                    showNotification('❌ No reports found in database');
                 }
-                
-                // Update map if available
-                if (mainMap && allReports.length > 0) {
-                    updateMapMarkers(allReports);
-                }
-            }, 100);
+            } catch (error) {
+                console.error('❌ Failed to fetch reports:', error);
+                showNotification('❌ Cannot connect to backend - Check if server is running on port 9000');
+            } finally {
+                btn.innerHTML = '<i class="fas fa-sync-alt"></i> Load Reports';
+                btn.disabled = false;
+            }
         }
         
-        // Load comprehensive demo data for testing
-        function loadDemoData() {
-            const demoReports = [
-                // Infrastructure Department Reports
-                {
-                    id: 'demo_001',
-                    title: 'Major Water Pipe Burst',
-                    description: 'Critical water main break causing severe flooding on highway. Immediate attention required.',
-                    category: 'infrastructure',
-                    priority: 'critical',
-                    status: 'pending',
-                    location: 'Highway Junction, Industrial Area',
-                    coordinates: { lat: 20.8705612, lng: 74.7660728 },
-                    user: { name: 'Traffic Police', email: 'traffic@gov.in' },
-                    timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-                    createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString()
-                },
-                {
-                    id: 'demo_002',
-                    title: 'Large Pothole on Main Street',
-                    description: 'Deep pothole causing vehicle damage and traffic congestion near city center.',
-                    category: 'infrastructure',
-                    priority: 'high',
-                    status: 'pending',
-                    location: 'Main Street, City Center',
-                    coordinates: { lat: 20.8953566, lng: 74.7294362 },
-                    user: { name: 'Pratik Gadhe', email: 'pratik@example.com' },
-                    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-                    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-                },
-                {
-                    id: 'demo_003',
-                    title: 'Drainage System Blocked',
-                    description: 'Storm drain completely blocked causing water logging during rains.',
-                    category: 'infrastructure',
-                    priority: 'medium',
-                    status: 'progress',
-                    location: 'Residential Colony, Sector 5',
-                    coordinates: { lat: 20.9120663, lng: 74.7775639 },
-                    user: { name: 'Colony Resident', email: 'resident@example.com' },
-                    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-                    createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
-                },
-                
-                // Environment Department Reports
-                {
-                    id: 'demo_004',
-                    title: 'Garbage Collection Missed',
-                    description: 'Waste not collected for 3 days, creating hygiene issues and bad odor.',
-                    category: 'environment',
-                    priority: 'high',
-                    status: 'pending',
-                    location: 'Green Valley Society, Block A',
-                    coordinates: { lat: 20.8705612, lng: 74.7660728 },
-                    user: { name: 'Society Secretary', email: 'secretary@greenvalley.com' },
-                    timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-                    createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
-                },
-                {
-                    id: 'demo_005',
-                    title: 'Illegal Dumping Site',
-                    description: 'Construction waste being dumped illegally in public area, environmental hazard.',
-                    category: 'environment',
-                    priority: 'medium',
-                    status: 'pending',
-                    location: 'Behind Market Complex',
-                    coordinates: { lat: 20.8953566, lng: 74.7294362 },
-                    user: { name: 'Environmental Activist', email: 'activist@environment.org' },
-                    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-                    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
-                },
-                {
-                    id: 'demo_006',
-                    title: 'Air Pollution from Factory',
-                    description: 'Industrial unit releasing excessive smoke, violating pollution norms.',
-                    category: 'environment',
-                    priority: 'high',
-                    status: 'progress',
-                    location: 'Industrial Estate, Zone 2',
-                    coordinates: { lat: 20.9120663, lng: 74.7775639 },
-                    user: { name: 'Local Resident', email: 'concerned@citizen.com' },
-                    timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-                    createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString()
-                },
-                
-                // Public Safety Department Reports
-                {
-                    id: 'demo_007',
-                    title: 'Street Light Not Working',
-                    description: 'Multiple street lights out for a week, creating safety concerns at night.',
-                    category: 'safety',
-                    priority: 'medium',
-                    status: 'pending',
-                    location: 'Park Avenue, Near School',
-                    coordinates: { lat: 20.8705612, lng: 74.7660728 },
-                    user: { name: 'School Principal', email: 'principal@school.edu' },
-                    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-                    createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
-                },
-                {
-                    id: 'demo_008',
-                    title: 'Traffic Signal Malfunction',
-                    description: 'Traffic light stuck on red, causing major traffic jam during peak hours.',
-                    category: 'transport',
-                    priority: 'critical',
-                    status: 'progress',
-                    location: 'Central Square, Main Intersection',
-                    coordinates: { lat: 20.8953566, lng: 74.7294362 },
-                    user: { name: 'Traffic Constable', email: 'traffic@police.gov' },
-                    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-                    createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString()
-                },
-                {
-                    id: 'demo_009',
-                    title: 'Broken Footpath',
-                    description: 'Damaged sidewalk creating tripping hazard for pedestrians, especially elderly.',
-                    category: 'safety',
-                    priority: 'medium',
-                    status: 'resolved',
-                    location: 'Shopping District, Main Road',
-                    coordinates: { lat: 20.9120663, lng: 74.7775639 },
-                    user: { name: 'Senior Citizen', email: 'senior@community.org' },
-                    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-                    createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString()
-                },
-                
-                // Additional Mixed Reports
-                {
-                    id: 'demo_010',
-                    title: 'Park Maintenance Required',
-                    description: 'Public park equipment damaged, grass overgrown, needs immediate maintenance.',
-                    category: 'environment',
-                    priority: 'low',
-                    status: 'pending',
-                    location: 'Children Park, Sector 3',
-                    coordinates: { lat: 20.8705612, lng: 74.7660728 },
-                    user: { name: 'Parent Committee', email: 'parents@community.org' },
-                    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-                    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-                }
-            ];
-            
-            allReports = demoReports;
-            localStorage.setItem('demoReports', JSON.stringify(demoReports));
-            console.log('✅ Demo data created:', demoReports.length, 'reports across all departments');
-            
-            // Immediately display the demo reports
-            setTimeout(() => {
-                console.log('🔄 Triggering initial display...');
-                applyFilters();
-                updateStats();
-            }, 100);
-        }
+
 
         // Generate random coordinates for demo
         function generateRandomCoordinates() {
@@ -1906,67 +1749,54 @@
 
         // Filter and search
         async function applyFilters() {
-            showLoadingSpinner();
+            console.log(`🔍 Applying filters to ${allReports ? allReports.length : 0} reports...`);
+            
+            if (!allReports || allReports.length === 0) {
+                console.log('⚠️ No reports to filter');
+                filteredReports = [];
+                displayReports();
+                return;
+            }
             
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             const sortBy = document.getElementById('sortBy').value;
-            const startDate = document.getElementById('startDate')?.value || '';
-            const endDate = document.getElementById('endDate')?.value || '';
-
-            // Get selected departments
+            
+            // Get selected departments - map API categories to filter values
             const selectedDepartments = getSelectedDepartments();
-
+            const categoryMapping = {
+                'roads-traffic': 'infrastructure',
+                'water-supply': 'water', 
+                'electricity': 'infrastructure',
+                'waste-management': 'environment',
+                'public-facilities': 'safety'
+            };
+            
             // Get selected priorities
             const selectedPriorities = getSelectedPriorities();
             
             // Get selected statuses
             const selectedStatuses = Array.from(document.querySelectorAll('input[id^="status-"]:checked'))
                 .map(cb => cb.value);
-
-            // Build filter params
-            const filters = {
-                search: searchTerm,
-                departments: selectedDepartments,
-                priorities: selectedPriorities,
-                statuses: selectedStatuses,
-                startDate,
-                endDate,
-                sortBy
-            };
-
-            console.log(`🔍 Filtering ${allReports ? allReports.length : 0} reports...`);
             
-            if (!allReports || allReports.length === 0) {
-                console.log('⚠️ No reports to filter');
-                filteredReports = [];
-                hideLoadingSpinner();
-                displayReports();
-                return;
-            }
-            
-            // Use local filtering
+            // Filter reports
             filteredReports = allReports.filter(report => {
+                // Search filter
                 const matchesSearch = !searchTerm ||
-                    report.title.toLowerCase().includes(searchTerm) ||
-                    report.description.toLowerCase().includes(searchTerm) ||
-                    report.location.toLowerCase().includes(searchTerm);
-
-                const matchesDepartment = selectedDepartments.length === 0 || selectedDepartments.includes(report.category);
+                    (report.title && report.title.toLowerCase().includes(searchTerm)) ||
+                    (report.description && report.description.toLowerCase().includes(searchTerm)) ||
+                    (report.location && report.location.address && report.location.address.toLowerCase().includes(searchTerm));
+                
+                // Department filter - map API category to dashboard category
+                const reportCategory = categoryMapping[report.category] || report.category;
+                const matchesDepartment = selectedDepartments.length === 0 || selectedDepartments.includes(reportCategory);
+                
+                // Priority filter
                 const matchesPriority = selectedPriorities.length === 0 || selectedPriorities.includes(report.priority || 'medium');
-                const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(report.status);
-
-                let matchesDateRange = true;
-                if (startDate || endDate) {
-                    const reportDate = new Date(report.timestamp || report.createdAt);
-                    if (startDate) {
-                        matchesDateRange = matchesDateRange && reportDate >= new Date(startDate);
-                    }
-                    if (endDate) {
-                        matchesDateRange = matchesDateRange && reportDate <= new Date(endDate + 'T23:59:59');
-                    }
-                }
-
-                return matchesSearch && matchesDepartment && matchesPriority && matchesStatus && matchesDateRange;
+                
+                // Status filter
+                const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(report.status || 'pending');
+                
+                return matchesSearch && matchesDepartment && matchesPriority && matchesStatus;
             });
             
             console.log(`🔍 Filtered ${allReports.length} reports down to ${filteredReports.length}`);
@@ -1978,23 +1808,19 @@
                         const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
                         return (priorityOrder[b.priority] || 2) - (priorityOrder[a.priority] || 2);
                     case 'newest':
-                        return new Date(b.timestamp || b.createdAt) - new Date(a.timestamp || a.createdAt);
+                        return new Date(b.createdAt || b.timestamp) - new Date(a.createdAt || a.timestamp);
                     case 'oldest':
-                        return new Date(a.timestamp || a.createdAt) - new Date(b.timestamp || b.createdAt);
-                    case 'location':
-                        return (a.location || '').localeCompare(b.location || '');
+                        return new Date(a.createdAt || a.timestamp) - new Date(b.createdAt || b.timestamp);
                     default:
                         return 0;
                 }
             });
-
-            hideLoadingSpinner();
+            
             displayReports();
             
-            // Update map markers immediately
-            if (mainMap && filteredReports) {
+            // Update map markers
+            if (mainMap && filteredReports.length > 0) {
                 updateMapMarkers(filteredReports);
-                console.log(`🗺️ Map updated with ${filteredReports.length} filtered reports`);
             }
         }
 
@@ -2016,9 +1842,11 @@
             applyFilters();
         }
 
-        // Display reports
+        // Display reports - simplified version
         function displayReports() {
-            console.log(`📊 Displaying ${filteredReports ? filteredReports.length : 0} reports`);
+            console.log(`📊 Displaying reports...`);
+            console.log('allReports:', allReports);
+            console.log('filteredReports:', filteredReports);
             
             const container = document.getElementById('reportsContainer');
             const count = document.getElementById('reportsCount');
@@ -2028,60 +1856,46 @@
                 return;
             }
             
-            // Clear any existing loading spinners
-            const existingSpinner = container.querySelector('.loading-spinner');
-            if (existingSpinner) {
-                existingSpinner.remove();
-            }
+            // Use allReports if filteredReports is empty
+            const reportsToShow = filteredReports && filteredReports.length > 0 ? filteredReports : allReports;
             
-            if (!filteredReports || filteredReports.length === 0) {
-                console.log('⚠️ No filtered reports to display');
+            if (!reportsToShow || reportsToShow.length === 0) {
+                console.log('⚠️ No reports to display');
                 count.textContent = '0 reports';
                 container.innerHTML = `
                     <div style="text-align: center; padding: 40px; color: #6b7280;">
-                        <i class="fas fa-search" style="font-size: 48px; color: #d1d5db; margin-bottom: 15px;"></i>
-                        <p>No reports found matching your criteria</p>
-                        <p style="font-size: 14px; margin-top: 10px;">Total reports available: ${allReports ? allReports.length : 0}</p>
+                        <p>No reports found</p>
                     </div>
                 `;
                 return;
             }
 
-            count.textContent = `${filteredReports.length} report${filteredReports.length !== 1 ? 's' : ''}`;
+            count.textContent = `${reportsToShow.length} reports`;
+            console.log(`📊 Showing ${reportsToShow.length} reports`);
 
-            const reportsHTML = filteredReports.map(report => {
-                const date = new Date(report.timestamp || report.createdAt).toLocaleDateString();
-                const time = new Date(report.timestamp || report.createdAt).toLocaleTimeString();
-
-                const priorityIcon = {
-                    critical: '<i class="fas fa-exclamation-triangle" style="color: #dc2626;"></i>',
-                    high: '<i class="fas fa-arrow-up" style="color: #d97706;"></i>',
-                    medium: '<i class="fas fa-minus" style="color: #2563eb;"></i>',
-                    low: '<i class="fas fa-arrow-down" style="color: #4b5563;"></i>'
-                };
+            const reportsHTML = reportsToShow.map((report, index) => {
+                const date = new Date(report.createdAt || Date.now()).toLocaleDateString();
+                const time = new Date(report.createdAt || Date.now()).toLocaleTimeString();
+                const locationText = report.location?.address || 'Unknown location';
                 
                 return `
-                    <div class="report-item ${selectedReport?.id === report.id ? 'selected' : ''}" 
-                         onclick="selectReportAndShowDetails('${report.id}')">
+                    <div class="report-item">
                         <div class="report-header">
                             <div>
-                                <div class="report-title">
-                                    ${priorityIcon[report.priority] || ''}
-                                    ${report.title}
-                                </div>
+                                <div class="report-title">${report.title || 'No Title'}</div>
                                 <span class="report-category category-${report.category}">
-                                    ${report.category.toUpperCase()}
+                                    ${(report.category || 'general').toUpperCase()}
                                 </span>
                             </div>
-                            <span class="status-badge status-${report.status}">
-                                ${report.status.toUpperCase()}
+                            <span class="status-badge status-${report.status || 'pending'}">
+                                ${(report.status || 'pending').toUpperCase()}
                             </span>
                         </div>
-                        <div class="report-description">${report.description}</div>
+                        <div class="report-description">${report.description || 'No description'}</div>
                         <div class="report-meta">
                             <div class="report-location">
                                 <i class="fas fa-map-marker-alt"></i>
-                                ${report.location}
+                                ${locationText}
                             </div>
                             <div class="report-time">
                                 <i class="fas fa-clock"></i>
@@ -2129,11 +1943,19 @@
 
         // Update statistics
         function updateStats() {
+            if (!allReports || allReports.length === 0) {
+                document.getElementById('totalReports').textContent = '0';
+                document.getElementById('pendingReports').textContent = '0';
+                document.getElementById('progressReports').textContent = '0';
+                document.getElementById('resolvedReports').textContent = '0';
+                return;
+            }
+            
             document.getElementById('totalReports').textContent = allReports.length;
             document.getElementById('pendingReports').textContent =
                 allReports.filter(r => r.status === 'pending').length;
             document.getElementById('progressReports').textContent =
-                allReports.filter(r => r.status === 'progress').length;
+                allReports.filter(r => r.status === 'in-progress').length;
             document.getElementById('resolvedReports').textContent =
                 allReports.filter(r => r.status === 'resolved').length;
         }
@@ -2406,6 +2228,31 @@
         }
         
         // Enhanced real-time sync function
+        async function loadReportsFromAPI() {
+        try {
+            console.log('📡 Fetching reports from API...');
+            const response = await fetch(`${this.apiBaseUrl}/reports`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success && result.data) {
+                this.reports = result.data;
+                console.log(`✅ Loaded ${this.reports.length} reports from API`);
+                this.updateDashboard();
+                this.updateStats();
+            } else {
+                console.error('❌ API response error:', result);
+            }
+        } catch (error) {
+            console.error('❌ Failed to fetch reports:', error);
+            this.showConnectionError();
+        }
+    }
+
         function testSync() {
             const testBtn = event.target;
             testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';

@@ -386,12 +386,32 @@ const MyReportsScreen: React.FC = () => {
                 </ScrollView>
 
                 <View style={styles.modalActions}>
-                  <TouchableOpacity style={styles.actionButton}>
-                    <Text style={styles.actionButtonText}>✏️ Edit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.actionButton}>
-                    <Text style={styles.actionButtonText}>📤 Share</Text>
-                  </TouchableOpacity>
+                  {selectedReport.status === 'resolved' ? (
+                    <TouchableOpacity 
+                      style={[styles.actionButton, {backgroundColor: COLORS.success}]}
+                      onPress={() => {
+                        // Navigate to feedback screen
+                        setSelectedReport(null);
+                        // navigation.navigate('Feedback', {
+                        //   reportId: selectedReport.id,
+                        //   taskId: 'task_001', // In real app, get from API
+                        //   reportTitle: selectedReport.title
+                        // });
+                        Alert.alert('Feedback', 'Rate your experience with this resolution!');
+                      }}
+                    >
+                      <Text style={styles.actionButtonText}>⭐ Give Feedback</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <>
+                      <TouchableOpacity style={styles.actionButton}>
+                        <Text style={styles.actionButtonText}>✏️ Edit</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.actionButton}>
+                        <Text style={styles.actionButtonText}>📤 Share</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
                   <TouchableOpacity style={[styles.actionButton, {backgroundColor: COLORS.error}]}>
                     <Text style={styles.actionButtonText}>🗑️ Delete</Text>
                   </TouchableOpacity>

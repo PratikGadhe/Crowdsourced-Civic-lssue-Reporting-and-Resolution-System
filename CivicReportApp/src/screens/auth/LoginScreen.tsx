@@ -25,6 +25,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [isEngineerLogin, setIsEngineerLogin] = useState(false);
 
   const validateForm = (): boolean => {
     let isValid = true;
@@ -33,13 +34,24 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     setPhoneError('');
     setPasswordError('');
 
-    // Validate phone
-    if (!phone.trim()) {
-      setPhoneError('Phone number is required');
-      isValid = false;
-    } else if (!VALIDATION.PHONE_REGEX.test(phone.trim())) {
-      setPhoneError('Please enter a valid 10-digit phone number');
-      isValid = false;
+    if (isEngineerLogin) {
+      // Validate email for engineers
+      if (!phone.trim()) {
+        setPhoneError('Email is required');
+        isValid = false;
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phone.trim())) {
+        setPhoneError('Please enter a valid email address');
+        isValid = false;
+      }
+    } else {
+      // Validate phone for citizens
+      if (!phone.trim()) {
+        setPhoneError('Phone number is required');
+        isValid = false;
+      } else if (!VALIDATION.PHONE_REGEX.test(phone.trim())) {
+        setPhoneError('Please enter a valid 10-digit phone number');
+        isValid = false;
+      }
     }
 
     // Validate password
@@ -58,10 +70,123 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     if (!validateForm()) return;
 
     try {
-      await dispatch(loginUser({ phone: phone.trim(), password })).unwrap();
+      if (isEngineerLogin) {
+        // Engineer login - try API first, fallback to mock data
+        try {
+          console.log('Attempting to fetch engineer data from API...');
+          const response = await fetch('http://192.168.214.228:9000/api/engineers');
+          const result = await response.json();
+          
+          if (result.success) {
+            const engineer = result.data.find((eng: any) => eng.email === phone.trim());
+            
+            if (engineer && password === 'engineer123') {
+              // Store engineer data in auth state
+              await dispatch(loginUser({ 
+                phone: engineer.phone, 
+                password,
+                userType: 'engineer',
+                engineerId: engineer._id,
+                name: engineer.name,
+                email: engineer.email,
+                department: engineer.department,
+                specialization: engineer.specialization
+              })).unwrap();
+            } else {
+              throw new Error('Invalid engineer credentials');
+            }
+          } else {
+            throw new Error('API returned error: ' + result.error);
+          }
+        } catch (apiError) {
+          console.log('API failed, using mock engineer data:', apiError);
+          
+          // Fallback to mock engineer data with real database IDs
+          const mockEngineers = {
+            'rajesh.roads@gov.in': {
+              _id: '68d54da1a13d33a1c23b4cfc',
+              name: 'Rajesh Kumar',
+              phone: '+91-9876543210',
+              email: 'rajesh.roads@gov.in',
+              department: 'roads',
+              specialization: 'Road Construction & Repair'
+            },
+            'amit.roads@gov.in': {
+              _id: '68d54da1a13d33a1c23b4cfd',
+              name: 'Amit Sharma',
+              phone: '+91-9876543211',
+              email: 'amit.roads@gov.in',
+              department: 'roads',
+              specialization: 'Traffic Management'
+            },
+            'priya.water@gov.in': {
+              _id: '68d54da1a13d33a1c23b4cfe',
+              name: 'Priya Patel',
+              phone: '+91-9876543212',
+              email: 'priya.water@gov.in',
+              department: 'water',
+              specialization: 'Pipeline Maintenance'
+            },
+            'suresh.water@gov.in': {
+              _id: '68d54da1a13d33a1c23b4cff',
+              name: 'Suresh Joshi',
+              phone: '+91-9876543213',
+              email: 'suresh.water@gov.in',
+              department: 'water',
+              specialization: 'Water Quality Testing'
+            },
+            'vikram.elec@gov.in': {
+              _id: '68d54da1a13d33a1c23b4d00',
+              name: 'Vikram Singh',
+              phone: '+91-9876543214',
+              email: 'vikram.elec@gov.in',
+              department: 'electricity',
+              specialization: 'Power Line Maintenance'
+            },
+            'anita.waste@gov.in': {
+              _id: '68d54da1a13d33a1c23b4d01',
+              name: 'Anita Desai',
+              phone: '+91-9876543215',
+              email: 'anita.waste@gov.in',
+              department: 'waste',
+              specialization: 'Waste Collection & Disposal'
+            },
+            'ravi.public@gov.in': {
+              _id: '68d54da1a13d33a1c23b4d02',
+              name: 'Ravi Gupta',
+              phone: '+91-9876543216',
+              email: 'ravi.public@gov.in',
+              department: 'public',
+              specialization: 'Building Maintenance'
+            }
+          };
+          
+          const engineer = mockEngineers[phone.trim() as keyof typeof mockEngineers];
+          
+          if (engineer && password === 'engineer123') {
+            await dispatch(loginUser({ 
+              phone: engineer.phone, 
+              password,
+              userType: 'engineer',
+              engineerId: engineer._id,
+              name: engineer.name,
+              email: engineer.email,
+              department: engineer.department,
+              specialization: engineer.specialization
+            })).unwrap();
+          } else {
+            throw new Error('Invalid engineer credentials');
+          }
+        }
+      } else {
+        // Citizen login
+        await dispatch(loginUser({ phone: phone.trim(), password })).unwrap();
+      }
       // Navigation will be handled automatically by AppNavigator
-    } catch (err) {
-      Alert.alert('Login Failed', error || 'Please check your credentials and try again.');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      const errorMessage = err.message || error || 'Please check your credentials and try again.';
+      Alert.alert('Login Failed', errorMessage);
     }
   };
 
@@ -78,19 +203,36 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to report civic issues</Text>
+          <Text style={styles.subtitle}>
+            {isEngineerLogin ? 'Engineer Portal - Manage Tasks' : 'Sign in to report civic issues'}
+          </Text>
+          
+          <View style={styles.toggleContainer}>
+            <TouchableOpacity
+              style={[styles.toggleButton, !isEngineerLogin && styles.toggleActive]}
+              onPress={() => setIsEngineerLogin(false)}
+            >
+              <Text style={[styles.toggleText, !isEngineerLogin && styles.toggleTextActive]}>Citizen</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleButton, isEngineerLogin && styles.toggleActive]}
+              onPress={() => setIsEngineerLogin(true)}
+            >
+              <Text style={[styles.toggleText, isEngineerLogin && styles.toggleTextActive]}>Engineer</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.form}>
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Phone Number</Text>
+            <Text style={styles.label}>{isEngineerLogin ? 'Engineer Email' : 'Phone Number'}</Text>
             <TextInput
               style={[styles.input, phoneError ? styles.inputError : null]}
-              placeholder="Enter your phone number"
+              placeholder={isEngineerLogin ? 'Enter your engineer email' : 'Enter your phone number'}
               value={phone}
               onChangeText={setPhone}
-              keyboardType="phone-pad"
-              maxLength={10}
+              keyboardType={isEngineerLogin ? 'email-address' : 'phone-pad'}
+              maxLength={isEngineerLogin ? 50 : 10}
               autoCapitalize="none"
             />
             {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
@@ -210,6 +352,32 @@ const styles = StyleSheet.create({
   linkText: {
     ...TYPOGRAPHY.body,
     color: COLORS.primary,
+    fontWeight: '600',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+    padding: 4,
+    marginTop: SPACING.lg,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  toggleActive: {
+    backgroundColor: COLORS.primary,
+  },
+  toggleText: {
+    ...TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  toggleTextActive: {
+    color: COLORS.white,
     fontWeight: '600',
   },
 });
